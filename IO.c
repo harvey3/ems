@@ -1,3 +1,4 @@
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -22,10 +23,14 @@
 #include "Utils.h"
 #include "log.h"
 
+extern pthread_t gIoThread;
+
 char IoSendBuffer[25];
 char IoRecvBuffer[25];
 
 IoData gIoData;
+
+int gIoFromEMS = 0;
 
 void IoChecksumCalculate(void)
 {
@@ -55,6 +60,26 @@ void SendToEXIODataFrame(void)
 
     
 }
+
+void ioOutput()
+{
+    int temp = gTempHumiSensor3.temp.value - 40;
+    
+    if (temp > 45) {
+
+        gIoData.output1 |= TRANS_FAN_OUTPUT_MASK;
+        
+
+    } else if (temp < 40) {
+
+        gIoData.output1 &= ~TRANS_FAN_OUTPUT_MASK;
+
+    }
+    
+
+
+}
+
 void IoProcessCmd(CMDT *cmd)
 {
     log_debug("process IO cmd %d value %d", cmd->cmd, cmd->value);
@@ -88,7 +113,9 @@ void* IoThread(void *param)
     struct timeval tv;
     CMDT *cmd;
     int err;
-
+    
+    pthread_setname_np(gIoThread, "IO");
+    
     gIoData.cmdRq = rqueue_init(RQUEUE_SIZE);
     
     err = openSerial(IO_PORT, 9600, 1, 1);
@@ -110,9 +137,15 @@ void* IoThread(void *param)
         while ((cmd = rqueue_read(gIoData.cmdRq))) {
 
             IoProcessCmd(cmd);
+            gIoFromEMS = 1;
 
         }
-
+        
+        if (!gIoFromEMS)
+            ioOutput();
+        else
+            gIoFromEMS = 0;
+        
         SendToEXIODataFrame();
         IoChecksumCalculate();
         

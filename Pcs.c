@@ -1,3 +1,4 @@
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -20,8 +21,10 @@
 #include "Bms.h"
 #include "modbus.h"
 #include "config.h"
+#include "mqtt.h"
+#include "log.h"
 
-
+extern pthread_t gPcsThread;
 Pcs gPcs;
 int gStopPcsFromIO = 0;
 
@@ -37,7 +40,7 @@ void pcsControl()
     ptm = localtime (&(tv.tv_sec));
 
     /* charge power  */
-    if (ptm->tm_hour >= 23 || ptm->tm_hour <= 7) {
+    if (ptm->tm_hour >= 23 || ptm->tm_hour <= 7 || ptm->tm_hour == 12) {
 
         if (gPcs.isRecharge) {
             
@@ -51,13 +54,15 @@ void pcsControl()
                 if (setValue > abs(gPcs.maxChargePower.value))
                     setValue = abs(gPcs.maxChargePower.value);
         
-                SetPcsActPower(&gPcs, 0 - setValue);
-                if (gPcs.stopCmd.value) {
+                setValue = 0 - setValue;
+
+                SetPcsActPower(&gPcs, setValue);
+                if (gPcs.runState.value == PCS_STATE_STOP || gPcs.runState.value == PCS_STATE_READY) {
                     
                     startPcs(&gPcs);
-                    gPcs.stopCmd.value = 0;
-                    
+                    log_debug("$$$$$$$$$$$$$charging recharge power %d SOC %d", setValue, gPcs.bpSOC.value);
                 }
+                
                 
             }
             
@@ -71,23 +76,29 @@ void pcsControl()
         
                 if (setValue > abs(gPcs.maxChargePower.value))
                     setValue = abs(gPcs.maxChargePower.value);
-        
-                SetPcsActPower(&gPcs, 0 - setValue);
-                if (gPcs.stopCmd.value) {
+
+                setValue = 0 - setValue;
+
+
+                SetPcsActPower(&gPcs, setValue);
+                if (gPcs.runState.value == PCS_STATE_STOP || gPcs.runState.value == PCS_STATE_READY) {
+                    
                     startPcs(&gPcs);
-                    gPcs.stopCmd.value = 0;
+                    log_debug("$$$$$$$$$$$$$charging  power %d SOC %d", setValue, gPcs.bpSOC.value);
                 }
+                
+
                 
                 
             } else {
 
                 gPcs.isRecharge = 1;
-                if (gPcs.startCmd.value) {
-                    stopPcs(&gPcs);
-                    gPcs.startCmd.value = 0;
-                    
-                    
+                if (gPcs.runState.value != PCS_STATE_READY) {
+                    SetPcsActPower(&gPcs, 0);
+                    SetReadyPcs(&gPcs);
+                    log_debug("$$$$$$$$$$$$$charging  done SOC %d", gPcs.bpSOC.value);
                 }
+                
                 
             }
             
@@ -96,10 +107,7 @@ void pcsControl()
 
         }
 
-    }
-
-
-    if ((ptm->tm_hour == 8 && ptm->tm_min > 30)
+    } else if ((ptm->tm_hour == 8 && ptm->tm_min > 30)
         || (ptm->tm_hour > 8 && ptm->tm_hour < 11)
         || (ptm->tm_hour == 2 && ptm->tm_min > 30)
         || (ptm->tm_hour > 2 && ptm->tm_hour < 21))
@@ -116,31 +124,41 @@ void pcsControl()
         
             if (setValue > abs(gPcs.maxDischargePower.value))
                 setValue = abs(gPcs.maxDischargePower.value);
-        
+            
+
+            
             SetPcsActPower(&gPcs, setValue);
-            if (gPcs.stopCmd.value) {
+            if (gPcs.runState.value == PCS_STATE_STOP || gPcs.runState.value == PCS_STATE_READY) {
                 startPcs(&gPcs);
-                gPcs.stopCmd.value = 0;
+                log_debug("$$$$$$$$$$$$$discharging  power %d SOC %d", setValue, gPcs.bpSOC.value);
             }
+            
                 
                 
         } else {
 
-            if (gPcs.startCmd.value) {
-                stopPcs(&gPcs);
-                gPcs.startCmd.value = 0;
+            if (gPcs.runState.value != PCS_STATE_READY) {
+                
+                SetPcsActPower(&gPcs, 0);
+                SetReadyPcs(&gPcs);
+                log_debug("$$$$$$$$$$$$$discharging  done SOC %d", gPcs.bpSOC.value);           
             }
-        
-
-
+            
         }
         
 
 
 
+    } else {
+        
+        if (gPcs.runState.value != PCS_STATE_READY) {
+            SetPcsActPower(&gPcs, 0);
+            SetReadyPcs(&gPcs);
+        }
+            
+
     }
     
-
 
 
 }
@@ -153,15 +171,26 @@ void* PcsThread(void *param)
     struct timeval tv;
     int err;
 
+    log_debug("&&&&&&&&&&&&&&&&&&&&&&&&enter pcs thread");
+    pthread_setname_np(gPcsThread, "Pcs");
+    
     memset(&gPcs, 0, sizeof(gPcs));
     memset(&gPcsT, 0, sizeof(AddrTable));
     
-    parseConfig("config/pcs.conf");
-    buildAddrBlock(&gPcsT);
-    err = ModbusTCPInit(&gPcs.sock, &gPcs.mstatus, PCS_IPADDR);
+    err = parseConfig("config/pcs.conf");
     if (err < 0)
         pthread_exit(NULL);
-    
+
+    log_debug("&&&&&&&&&&&&&&&&&&&&&&&&enter pcs thread 1");
+    buildAddrBlock(&gPcsT);
+    log_debug("&&&&&&&&&&&&&&&&&&&&&&&&enter pcs thread 2");
+    err = ModbusTCPInit(&gPcs.sock, &gPcs.mstatus, PCS_IPADDR);
+    if (err < 0) {
+        log_error("init modbus TCP fail");
+        return NULL;
+        
+    }
+    log_debug("&&&&&&&&&&&&&&&&&&&&&&&&enter pcs thread 3");
 
     while (1) {
         
@@ -175,10 +204,20 @@ void* PcsThread(void *param)
         }while(err<0 && errno==EINTR);
 
         GetPcsStatus(&gPcs);
-        /* pcsControl(); */
+
         
-        if (gStopPcsFromIO && gPcs.stopCmd.value != 1)
-            stopPcs(&gPcs);
+        /* if (gStopPcsFromIO) { */
+            
+        /*     if (gPcs.runState.value != PCS_STATE_STOP) */
+        /*         stopPcs(&gPcs); */
+
+        
+        /* } else { */
+            
+        /*     if (mqttDown) */
+        /*         pcsControl(); */
+        /* } */
+        
         
     }
     

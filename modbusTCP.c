@@ -167,18 +167,20 @@ int writeModbusTCPData(ModbusMaster *mstatus, int sock, uint16_t address, REG_T 
     ModbusError err;
     AddrTable t;
     int i;
+    log_debug("########reverse count");
     
     ret = reverseCount(r->value, r->opQ, r->flag, &t);
     if (ret < 0) {
         log_error("reverse count fail");
         return ret;
     }
-    
+    log_debug("########reverse count done %d %d", t.addr[0], t.value[0]);
     for (i = 0; i < t.cnt; i++) {
 
         //Build frame to write 1 registers
         modbusBuildRequest06(mstatus, address, t.addr[i], t.value[i]);
-
+        log_debug("modbusTCP write addr %d value %d", t.addr[i], t.value[i]);
+        
         ret = TcpSendRecvFrame(sock, mstatus);
         if (ret < 0) {
             log_error("modbus send recv fail");
@@ -224,8 +226,7 @@ int readModbusTCPData(ModbusMaster *mstatus, int sock, uint16_t address, AddrTab
                 end = t->cnt;
             else
                 end = lookupAddrTable(t, t->ab[i + 1].addr);
-            log_debug("start %d end %d", start, end);
-            
+                
             for (j = start; j < end; j++) {
                 /* log_debug("j = %d", j); */
                 t->value[j] = mstatus->data.regs[ADDR2INDEX(t->ab[i].addr, t->addr[j])];
@@ -301,7 +302,11 @@ void GetPcsStatus(Pcs *pcs)
         pcs->ctrlMode.value = count(pcs->ctrlMode.opQ, pcs->ctrlMode.flag, &gPcsT);
         pcs->workMode.value = count(pcs->workMode.opQ, pcs->workMode.flag, &gPcsT);
         pcs->runState.value = count(pcs->runState.opQ, pcs->runState.flag, &gPcsT);
+        log_debug("#######pcs ctrlMode %d workMode %d runState %d", pcs->ctrlMode.value, pcs->workMode.value, pcs->runState.value);
 
+        pcs->startCmd.value = count(pcs->startCmd.opQ, pcs->startCmd.flag, &gPcsT);
+        pcs->stopCmd.value = count(pcs->stopCmd.opQ, pcs->stopCmd.flag, &gPcsT);
+        log_debug("#######pcs startCmd %d stopCmd %d", pcs->startCmd.value, pcs->stopCmd.value);
         pcs->totalBpVolt.value = count(pcs->totalBpVolt.opQ, pcs->totalBpVolt.flag, &gPcsT);
         pcs->totalBpCurr.value = count(pcs->totalBpVolt.opQ, pcs->totalBpVolt.flag, &gPcsT);
 
@@ -381,6 +386,25 @@ void stopPcs(Pcs *pcs)
 
 }
 
+void SetReadyPcs(Pcs *pcs)
+{
+
+    
+    int ret;
+    
+    pcs->readyCmd.value = 1;
+    
+    ret = writeModbusTCPData(&pcs->mstatus, pcs->sock, PCS_ADDR, &pcs->stopCmd);
+    
+    if (ret < 0) {
+            
+        log_error("pcs set work modefail");
+        return;
+
+    }
+
+}
+
 void SetPcsActPower(Pcs *pcs, int16_t power)
 {
     int ret;
@@ -419,8 +443,11 @@ void GetBmsStatus(Bms *bms)
             
             bms->mu[i].totalVolt.value = count(bms->mu[i].totalVolt.opQ, bms->mu[i].totalVolt.flag, &gBmsT);
             bms->mu[i].totalCurr.value = count(bms->mu[i].totalCurr.opQ, bms->mu[i].totalCurr.flag, &gBmsT);
+            log_debug("bms totalVolt %d totalCurr %d", bms->mu[i].totalVolt.value, bms->mu[i].totalCurr);
+            
             bms->mu[i].SOC.value = count(bms->mu[i].SOC.opQ, bms->mu[i].SOC.flag, &gBmsT);
             bms->mu[i].SOH.value = count(bms->mu[i].SOH.opQ, bms->mu[i].SOH.flag, &gBmsT);
+            log_debug("bms SOC %d SOH %d", bms->mu[i].SOC.value, bms->mu[i].SOH.value);
             bms->mu[i].maxSingleBpVolt.value = count(bms->mu[i].maxSingleBpVolt.opQ, bms->mu[i].maxSingleBpVolt.flag, &gBmsT);
             bms->mu[i].minSingleBpVolt.value = count(bms->mu[i].minSingleBpVolt.opQ, bms->mu[i].minSingleBpVolt.flag, &gBmsT);
             bms->mu[i].avgSingleBpVolt.value = count(bms->mu[i].avgSingleBpVolt.opQ, bms->mu[i].avgSingleBpVolt.flag, &gBmsT);
@@ -429,6 +456,8 @@ void GetBmsStatus(Bms *bms)
             bms->mu[i].minSingleBpTemp.value = count(bms->mu[i].minSingleBpTemp.opQ, bms->mu[i].minSingleBpTemp.flag, &gBmsT);
             bms->mu[i].avgSingleBpTemp.value = count(bms->mu[i].avgSingleBpTemp.opQ, bms->mu[i].avgSingleBpTemp.flag, &gBmsT);
             bms->mu[i].powerOnCmd.value = count(bms->mu[i].powerOnCmd.opQ, bms->mu[i].powerOnCmd.flag, &gBmsT);
+            log_debug("####################bms powerOnCmd %d", bms->mu[i].powerOnCmd.value);
+            
             bms->mu[i].maxAllowedChargeCurr.value = count(bms->mu[i].maxAllowedChargeCurr.opQ, bms->mu[i].maxAllowedChargeCurr.flag, &gBmsT);
             bms->mu[i].maxAllowedDischrgCurr.value = count(bms->mu[i].maxAllowedDischrgCurr.opQ, bms->mu[i].maxAllowedDischrgCurr.flag, &gBmsT);
 
@@ -471,12 +500,12 @@ void BmsPowerOn(Bms *bms)
     int i;
 
     for (i = 0; i < 1; i++) {
+        log_debug("#######bms power on");
         
         bms->mu[i].powerOnCmd.value = 1;
         ret = writeModbusTCPData(&bms->mstatus, bms->sock, BMS_ADDR, &bms->mu[i].powerOnCmd);
     
         if (ret < 0) {
-            
             log_error("bms set power on fail");
             return;
 

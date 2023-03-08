@@ -135,13 +135,11 @@ int readModbusRTUData(ModbusMaster *mstatus, int port, uint16_t address, AddrTab
                 end = t->cnt;
             else
                 end = lookupAddrTable(t, t->ab[i + 1].addr);
-            log_debug("start %d end %d", start, end);
-            
+                
             for (j = start; j < end; j++) {
                 /* log_debug("j = %d", j); */
                 t->value[j] = mstatus->data.regs[ADDR2INDEX(t->ab[i].addr, t->addr[j])];
-                if (t->addr[j] == 2021)
-                    log_debug("@@@@ addr %d value %d", t->addr[j], t->value[j]);
+    
                 
             }
             
@@ -469,7 +467,7 @@ void GetAirConWhMeterStatus(AirConWhMeter *acm)
         acm->bPhaseVolt.value = count(acm->bPhaseVolt.opQ, acm->bPhaseVolt.flag, &gAirConWhMeterT);
 
         acm->cPhaseVolt.value = count(acm->cPhaseVolt.opQ, acm->cPhaseVolt.flag, &gAirConWhMeterT);
-        
+        log_debug("aircon wh aPhaseCurr %d", acm->aPhaseCurr.value);
         acm->aPhaseCurr.value = count(acm->aPhaseCurr.opQ, acm->aPhaseCurr.flag, &gAirConWhMeterT);
 
         acm->bPhaseCurr.value = count(acm->bPhaseCurr.opQ, acm->bPhaseCurr.flag, &gAirConWhMeterT);
@@ -478,7 +476,21 @@ void GetAirConWhMeterStatus(AirConWhMeter *acm)
         
         acm->freq.value = count(acm->freq.opQ, acm->freq.flag, &gAirConWhMeterT);
 
+        acm->consumedActPower.value = count(acm->consumedActPower.opQ, acm->consumedActPower.flag, &gAirConWhMeterT);
 
+        log_debug("aircon wh consumedActPower.value %d", acm->consumedActPower.value);        
+
+        acm->producedActPower.value = count(acm->producedActPower.opQ, acm->producedActPower.flag, &gAirConWhMeterT);
+
+        acm->capReactPower.value = count(acm->capReactPower.opQ, acm->capReactPower.flag, &gAirConWhMeterT);
+        log_debug("aircon wh capReactPower.value %d", acm->capReactPower.value);        
+
+        acm->inductReactPower.value = count(acm->inductReactPower.opQ, acm->inductReactPower.flag, &gAirConWhMeterT);
+
+        acm->totalActPower.value = count(acm->totalActPower.opQ, acm->totalActPower.flag, &gAirConWhMeterT);
+        acm->totalReactPower.value = count(acm->totalReactPower.opQ, acm->totalReactPower.flag, &gAirConWhMeterT);
+        log_debug("aircon wh totalActPower.value %d", acm->totalActPower.value);
+        log_debug("aircon wh totalReactPower.value %d", acm->totalReactPower.value);        
 
     }
     

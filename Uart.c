@@ -61,7 +61,8 @@ int openSerial(int iPort, int baud, int stopLen, int parity)
 
     if (iPort > 8) {
         log_error("no such serial port:ttymxc%d . ", iPort-1);
-        exit(1);
+        return -1;
+        
     }
     
     if (GiSerialFds[iPort-1] > 0) {

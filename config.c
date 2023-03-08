@@ -125,7 +125,7 @@ void buildAddrTable(AddrTable *t, ParseResult *pr)
 
     for (i = 0; pr->flag[i] > 0; i++)
     {
-        if (pr->flag[i] == 3) {
+        if (pr->flag[i] == 3 || pr->flag[i] == 4) {
             
             addr = pr->opQ[i].addr;
             addAddrToTable(t, addr);
@@ -195,6 +195,46 @@ int lookupAddrTable(AddrTable *t, unsigned short addr)
 
 }
 
+void parseBmsMeter(Bms *bms, ParseResult *pr)
+{
+    if (!bms || !pr)
+        return;
+
+    buildAddrTable(&gBmsT, pr);
+    
+    if (!strcmp("powerOnCmd", pr->regName)) {
+        memcpy(bms->mu[0].powerOnCmd.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(bms->mu[0].powerOnCmd.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("totalVolt", pr->regName)) {
+        memcpy(bms->mu[0].totalVolt.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(bms->mu[0].totalVolt.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("totalCurr", pr->regName)) {
+        memcpy(bms->mu[0].totalCurr.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(bms->mu[0].totalCurr.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("SOC", pr->regName)) {
+        memcpy(bms->mu[0].SOC.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(bms->mu[0].SOC.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("SOH", pr->regName)) {
+        memcpy(bms->mu[0].SOH.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(bms->mu[0].SOH.flag, pr->flag, sizeof(pr->flag));
+
+
+    } 
+
+
+
+
+
+
+}
 
 void parsePcsMeter(Pcs *pcs, ParseResult *pr)
 {
@@ -512,7 +552,35 @@ void parseAirConWattMeter(AirConWhMeter *whm, ParseResult *pr)
         memcpy(whm->freq.flag, pr->flag, sizeof(pr->flag));
 
     }
-    
+
+    else if (!strcmp("consumedActPower", pr->regName)) {
+        memcpy(whm->consumedActPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->consumedActPower.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("producedActPower", pr->regName)) {
+        memcpy(whm->producedActPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->producedActPower.flag, pr->flag, sizeof(pr->flag));
+
+    } else if (!strcmp("capReactPower", pr->regName)) {
+        memcpy(whm->capReactPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->capReactPower.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("inductReactPower", pr->regName)) {
+        memcpy(whm->inductReactPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->inductReactPower.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("totalActPower", pr->regName)) {
+        memcpy(whm->totalActPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->totalActPower.flag, pr->flag, sizeof(pr->flag));
+
+    } else if (!strcmp("totalReactPower", pr->regName)) {
+        memcpy(whm->totalReactPower.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(whm->totalReactPower.flag, pr->flag, sizeof(pr->flag));
+    }
+
 }
 
 void parseOngridWattMeter(OnGridWhMeter *whm, ParseResult *pr)
@@ -835,6 +903,46 @@ void parseAirCon(AirCon *ac, ParseResult *pr)
         memcpy(ac->directVolt.flag, pr->flag, sizeof(pr->flag));
 
 
+    } else if (!strcmp("heatTargetTempSet", pr->regName)) {
+        memcpy(ac->heatTargetTempSet.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->heatTargetTempSet.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("coolTargetTempSet", pr->regName)) {
+        memcpy(ac->coolTargetTempSet.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->coolTargetTempSet.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("targetHumiSet", pr->regName)) {
+        memcpy(ac->targetHumiSet.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->targetHumiSet.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("dehumiOffset", pr->regName)) {
+        memcpy(ac->dehumiOffset.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->dehumiOffset.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("coolOffset", pr->regName)) {
+        memcpy(ac->coolOffset.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->coolOffset.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("heatOffset", pr->regName)) {
+        memcpy(ac->heatOffset.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->heatOffset.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("highAlarmTemp", pr->regName)) {
+        memcpy(ac->highAlarmTemp.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->highAlarmTemp.flag, pr->flag, sizeof(pr->flag));
+
+
+    } else if (!strcmp("lowAlarmTemp", pr->regName)) {
+        memcpy(ac->lowAlarmTemp.opQ, pr->opQ, sizeof(pr->opQ));
+        memcpy(ac->lowAlarmTemp.flag, pr->flag, sizeof(pr->flag));
+
+
     } else if (!strcmp("maxElecHeatTemp", pr->regName)) {
         memcpy(ac->maxElecHeatTemp.opQ, pr->opQ, sizeof(pr->opQ));
         memcpy(ac->maxElecHeatTemp.flag, pr->flag, sizeof(pr->flag));
@@ -868,6 +976,7 @@ int element(char *res, union counter *q, char *flag)
     int n = 0;//循环后重置flag下标
     int index;
     char *end;
+    char type;
     
     
     memset(flag, 0, MAX_ELEMENT);
@@ -885,6 +994,15 @@ int element(char *res, union counter *q, char *flag)
         
         if (res[i] == '@') {
             i++;
+            
+            if (res[i] == 'S') {
+                type = 4;
+                i++;
+            } else {
+                type = 3;
+                
+            }
+            
             while (checkHexChar(res[i])) {
                 temp[j++] = res[i];
                 i++;
@@ -894,7 +1012,7 @@ int element(char *res, union counter *q, char *flag)
             temp[j] = '\0';
             log_debug("temp %s\n", temp);
             q[n].addr  = strtol(temp, &end, 16);
-            flag[n] = 3;
+            flag[n] = type;
             n++;                
             memset(temp,'\0',sizeof(temp));
             j = 0;
@@ -1031,7 +1149,7 @@ int reverseCount(int value, union counter *new_res, char *flag, AddrTable *t)
     
     }
     
-    if (flag[i] == 3 && i == 0) {
+    if ((flag[i] == 3 || flag[i] == 4) && i == 0) {
     
         
         t->cnt = 1;
@@ -1104,7 +1222,7 @@ int reverseCount(int value, union counter *new_res, char *flag, AddrTable *t)
                 default:
                     break;
                 }
-            } else if (flag[i] == 3) {
+            } else if (flag[i] == 3 || flag[i] == 4) {
 
                 t->addr[0] = new_res[i].addr;
                 t->value[0] = result;
@@ -1194,6 +1312,22 @@ int count(union counter *new_res, char *flag, AddrTable *t)
             }
             
             break;
+        case 4:
+            if ((index = lookupAddrTable(t, new_res[i].addr)) >= 0) {
+
+                log_debug("###count: index %d addr %d value %u", index, new_res[i].addr, t->value[index]); 
+                stack_num[x++] = (signed short)t->value[index];
+            }
+            
+            else {
+                
+                log_error("lookup addr %x for value fail", new_res[i].addr);
+                return -1;
+                
+            }
+            
+            break;
+            
             
         default:
             break;
@@ -1305,7 +1439,7 @@ char *parseLine(char *buf, ParseResult *pr)
 }
 
 
-void parseConfig(const char *path)
+int parseConfig(const char *path)
 {
 
     int fd;
@@ -1318,21 +1452,37 @@ void parseConfig(const char *path)
     log_debug("open %s", path);
     
     fd = open(path, O_RDONLY);
-    if (fd < 0)
+    if (fd < 0) {
+        
         log_error("open %s fail", path);
-
+        return -1;
+    }
+    
     size = get_file_size(path);
-    if (size < 0)
+    if (size < 0) {
+        close(fd);
         log_error("get file %s size fail", path);
-
-    buf = malloc(size);
-    if (!buf)
+        return -1;
+        
+    }
+    
+    buf = malloc(size + 1);
+    if (!buf) {
+        close(fd);
         log_error("malloc mem fail");
-
+        return -1;
+        
+    }
+    
     len = read(fd, buf, size);
-    if (len != size)
+    if (len != size) {
+        close(fd);
+        free(buf);
         log_error("read file fail %d", len);
-
+        return -1;
+        
+    }
+    
 
     buf[size] = '\n';
     p = buf;
@@ -1368,10 +1518,13 @@ void parseConfig(const char *path)
             parseOffgridWattMeter(&gOffGridWhMeter, &pr);
         else if (!strcmp(path, "config/pcs.conf"))
             parsePcsMeter(&gPcs, &pr);
+        else if (!strcmp(path, "config/bms.conf"))
+            parseBmsMeter(&gBms, &pr);
     }
     
     free(buf);
     close(fd);
+    return 0;
     
     
 

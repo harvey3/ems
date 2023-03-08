@@ -2,7 +2,7 @@
 #define MQTT_HEADER
 
 #define MQTT_PORT 1883
-#define MQTT_HOST "47.104.176.81"
+#define MQTT_HOST "192.168.1.30"
 #define MQTT_DELAY_MSEC 400
 
 #define AIRCON_PUB_BUF_LEN 22
@@ -11,7 +11,7 @@
 #define THERMO_PUB_BUF_LEN 5
 #define ONGRID_WH_METER_PUB_BUF_LEN 44
 #define OFFGRID_WH_METER_PUB_BUF_LEN 60
-#define AIRCON_WH_METER_PUB_BUF_LEN 28
+#define AIRCON_WH_METER_PUB_BUF_LEN 52
     
 /* topic */
 #define AIRCON_SET_TOPIC "longertek/ems/rcu/aircon/set"
@@ -53,6 +53,8 @@ typedef struct io_mqtt_set_packet
 
 } __attribute__((packed)) IoMqttSetP;
 
+
+extern int mqttDown;
 
 void* MqttThread(void *param);
 

@@ -1,3 +1,4 @@
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +22,8 @@
 #include "config.h"
 #include "Utils.h"
 #include "log.h"
+
+extern pthread_t gAirConThread;
 
 AirCon gAirCon;
 AirConWhMeter gAirConWhMeter;
@@ -90,6 +93,7 @@ void* AirConThread(void *param)
     int i;
     CMDT *cmd;
     
+    pthread_setname_np(gAirConThread, "AirCon");
     memset(&gAirCon, 0, sizeof(gAirCon));
     memset(&gAirConWhMeter, 0, sizeof(gAirConWhMeter));
     memset(&gAirConT, 0, sizeof(AddrTable));
@@ -97,23 +101,26 @@ void* AirConThread(void *param)
 
     gAirCon.cmdRq = rqueue_init(RQUEUE_SIZE);
     
-    parseConfig("config/aircon.conf");
+    err = parseConfig("config/aircon.conf");
+    if (err < 0)
+        pthread_exit(NULL);
+    
     buildAddrBlock(&gAirConT);
-    log_debug("###############addr table");
     
-    for (i = 0; i < gAirConT.cnt; i++)
-        log_debug("addr %d", gAirConT.addr[i]);
-
-    log_debug("###############addr block table");
-    
-    for (i = 0; i < gAirConT.abCnt; i++)
-        log_debug("addr %d count %d", gAirConT.ab[i].addr, gAirConT.ab[i].count);
 
     gAirCon.address = AIRCON_ADDR;
     
     parseConfig("config/airconWattMeter.conf");
     buildAddrBlock(&gAirConWhMeterT);
     gAirConWhMeter.address = AIRCON_WH_METER_ADDR;
+    log_debug("###############aircon wh addr table");
+    
+    for (i = 0; i < gAirConWhMeterT.cnt; i++)
+        log_debug("addr %d", gAirConWhMeterT.addr[i]);
+
+    log_debug("###############aircon wh addr block table");
+    for (i = 0; i < gAirConWhMeterT.abCnt; i++)
+        log_debug("addr %d count %d", gAirConWhMeterT.ab[i].addr, gAirConWhMeterT.ab[i].count);
     
     err = openSerial(AIRCON_PORT, 9600, 1, 0);
     if (err < 0)

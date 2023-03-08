@@ -1,3 +1,4 @@
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
@@ -21,6 +22,9 @@
 #include "config.h"
 #include "log.h"
 
+extern pthread_t gOnGridWhMeterThread;
+extern pthread_t gOffGridWhMeterThread;
+
 OffGridWhMeter gOffGridWhMeter;
 OnGridWhMeter gOnGridWhMeter;
 
@@ -33,10 +37,14 @@ void* OnGridWhMeterThread(void *param)
     int err;
     int i;
     
+    pthread_setname_np(gOnGridWhMeterThread, "OnGridWhMeter");
     memset(&gOnGridWhMeter, 0, sizeof(gOnGridWhMeter));
     memset(&gOnGridWhMeterT, 0, sizeof(AddrTable));
     
-    parseConfig("config/ongridWattMeter.conf");
+    err = parseConfig("config/ongridWattMeter.conf");
+    if (err < 0)
+        pthread_exit(NULL);
+
     buildAddrBlock(&gOnGridWhMeterT);
     gOnGridWhMeter.address = ONGRID_WH_METER_ADDR;
     log_debug("###############addr table");
@@ -80,11 +88,16 @@ void* OffGridWhMeterThread(void *param)
 
     struct timeval tv;
     int err;
-
+    
+    pthread_setname_np(gOffGridWhMeterThread, "OffGridWhMeter");
+    
     memset(&gOffGridWhMeter, 0, sizeof(gOffGridWhMeter));
     memset(&gOffGridWhMeterT, 0, sizeof(AddrTable));
     
-    parseConfig("config/offgridWattMeter.conf");
+    err = parseConfig("config/offgridWattMeter.conf");
+    if (err < 0)
+        pthread_exit(NULL);
+
     buildAddrBlock(&gOffGridWhMeterT);
     gOffGridWhMeter.address = OFFGRID_WH_METER_ADDR;
     

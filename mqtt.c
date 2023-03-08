@@ -41,10 +41,10 @@
     stdoutsub topic/of/interest --host iot.eclipse.org
 
 */
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdio.h>
 #include <memory.h>
-
-
+#include <pthread.h>
 #include <stdio.h>
 #include <signal.h>
 #include <string.h>
@@ -65,7 +65,10 @@
 #include "Utils.h"
 #include "log.h"
 
+extern pthread_t gMqttThread;
 volatile int toStop = 0;
+
+int mqttDown = 0;
 
 AirConMqttSetP gAirConMqttSet;
 IoMqttSetP     gIoMqttSet;
@@ -216,7 +219,7 @@ void ioMessageArrived(MessageData* md)
     log_debug("%s message arrived", md->topicName->lenstring.data);
     lastSet = gIoMqttSet;
     memcpy(&gIoMqttSet, message->payload, message->payloadlen);
-
+    log_debug("@@@@@@@setFlag1 %x", gIoMqttSet.setFlag1);
     if ((gIoMqttSet.setFlag1 & 0x3) != (lastSet.setFlag1 & 0x3)) {
 
         if ((gIoMqttSet.setFlag1 & 0x3) == 1)
@@ -274,8 +277,8 @@ void pubAirconReport(MQTTClient *c, AirCon *ac)
     airconPubBuf[1] = ac->outdoorTemp.value;
     airconPubBuf[2] = ac->indoorHumi.value;
     log_debug("###aircon runStat %x", ac->runStat.value);
-    airconPubBuf[3] = ac->runStat.value >> 8;
-    airconPubBuf[4] = ac->runStat.value & 0xFF;
+    airconPubBuf[4] = ac->runStat.value >> 8;
+    airconPubBuf[3] = ac->runStat.value & 0xFF;
     airconPubBuf[5] = ac->workMode.value;
     airconPubBuf[6] = ac->heatTargetTemp.value;
     log_debug("###aircon heatTargetTemp %d", ac->heatTargetTemp.value);
@@ -329,7 +332,6 @@ void pubThermoReport(MQTTClient *c, TransThermo *tth)
     
     thermoPubBuf[0] = tth->status.value;
     log_debug("#####thermo status %x", tth->status.value);
-    thermoPubBuf[0] = 3;
     
     thermoPubBuf[1] = tth->aPhaseTemp.value;
     thermoPubBuf[2] = tth->bPhaseTemp.value;
@@ -378,8 +380,39 @@ void pubAirconWhMeterReport(MQTTClient *c, AirConWhMeter *whm)
 
     airconWhMeterPubBuf[26] = whm->freq.value >> 8;
     airconWhMeterPubBuf[27] = whm->freq.value & 0xFF;
-
     
+    airconWhMeterPubBuf[28] = whm->consumedActPower.value >> 24;
+    airconWhMeterPubBuf[29] = (whm->consumedActPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[30] = (whm->consumedActPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[31] = (whm->consumedActPower.value & 0xFF);
+    log_debug("#######aircon wh consumedActPower %d", whm->consumedActPower.value);
+    airconWhMeterPubBuf[32] = whm->producedActPower.value >> 24;
+    airconWhMeterPubBuf[33] = (whm->producedActPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[34] = (whm->producedActPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[35] = (whm->producedActPower.value & 0xFF);
+    log_debug("#######aircon wh producedActPower %d", whm->producedActPower.value);
+    airconWhMeterPubBuf[36] = whm->capReactPower.value >> 24;
+    airconWhMeterPubBuf[37] = (whm->capReactPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[38] = (whm->capReactPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[39] = (whm->capReactPower.value & 0xFF);
+    log_debug("#######aircon wh capReactPower %d", whm->capReactPower.value);
+    airconWhMeterPubBuf[40] = whm->inductReactPower.value >> 24;
+    airconWhMeterPubBuf[41] = (whm->inductReactPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[42] = (whm->inductReactPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[43] = (whm->inductReactPower.value & 0xFF);
+
+    airconWhMeterPubBuf[44] = whm->totalActPower.value >> 24;
+    airconWhMeterPubBuf[45] = (whm->totalActPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[46] = (whm->totalActPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[47] = (whm->totalActPower.value & 0xFF);
+
+    airconWhMeterPubBuf[48] = whm->totalReactPower.value >> 24;
+    airconWhMeterPubBuf[49] = (whm->totalReactPower.value & 0xFF0000) >> 16;
+    airconWhMeterPubBuf[50] = (whm->totalReactPower.value & 0xFF00) >> 8;
+    airconWhMeterPubBuf[51] = (whm->totalReactPower.value & 0xFF);
+
+    log_debug("#######aircon wh totalReactPower %d", whm->totalReactPower.value);
+
     pubMqttMessage(c, QOS0, AIRCON_WH_METER_REPORT_TOPIC, airconWhMeterPubBuf, AIRCON_WH_METER_PUB_BUF_LEN);
 
 }
@@ -464,7 +497,7 @@ void pubOffgridWhMeterReport(MQTTClient *c, OffGridWhMeter *whm)
     offgridWhMeterPubBuf[5] = whm->apparentPower.value & 0xFF;
     offgridWhMeterPubBuf[6] = whm->powerFactor.value >> 8;
     offgridWhMeterPubBuf[7] = whm->powerFactor.value & 0xFF;
-
+    log_debug("#######offgrid wh powerFactor %d", whm->powerFactor.value);
     offgridWhMeterPubBuf[8] = whm->abVolt.value >> 8;
     offgridWhMeterPubBuf[9] = whm->abVolt.value & 0xFF;
     offgridWhMeterPubBuf[10] = whm->bcVolt.value >> 8;
@@ -549,6 +582,8 @@ void* MqttThread(void *param)
 	MQTTClient c;
     struct sigaction action;
     
+    pthread_setname_np(gMqttThread, "Mqtt");
+    
     action.sa_handler = sighandler;
     sigemptyset(&action.sa_mask);
     action.sa_flags = 0;
@@ -573,8 +608,21 @@ void* MqttThread(void *param)
 	data.cleansession = 1;
 	log_info("Connecting to %s %d\n", MQTT_HOST, MQTT_PORT);
 #if 1
+reconnect:
 	rc = MQTTConnect(&c, &data);
-	log_info("Connected %d\n", rc);
+    if (rc) {
+        log_error("MQTT connect fail");
+        mqttDown = 1;
+        sleep(3);
+        goto reconnect;
+
+    } else {
+        
+        mqttDown = 0;
+        log_info("Connected %d\n", rc);
+
+    }
+    
     
     log_info("Subscribing to %s\n", AIRCON_SET_TOPIC);
 	rc = MQTTSubscribe(&c, AIRCON_SET_TOPIC, QOS0, airconMessageArrived);
@@ -600,10 +648,15 @@ void* MqttThread(void *param)
         pubOffgridWhMeterReport(&c, &gOffGridWhMeter);
         pubOngridWhMeterReport(&c, &gOnGridWhMeter);
         
-		MQTTYield(&c, 1000);
+		rc = MQTTYield(&c, 1000);
+        if (rc)
+            mqttDown = 1;
+        else
+            mqttDown = 0;
         
 #endif
-
+        MsecSleep(1000);
+        
         
         
 	}
@@ -613,7 +666,7 @@ void* MqttThread(void *param)
 	MQTTDisconnect(&c);
 	NetworkDisconnect(&n);
 
-	return 0;
+	return NULL;
 }
 
 

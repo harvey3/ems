@@ -89,6 +89,12 @@ typedef struct aircon_wh_meter
     
     REG_T freq;
 
+    REG_T consumedActPower;
+    REG_T producedActPower;
+    REG_T capReactPower;
+    REG_T inductReactPower;
+    REG_T totalActPower;
+    REG_T totalReactPower;
     
 
 } AirConWhMeter;

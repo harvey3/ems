@@ -53,7 +53,7 @@ int reverseCount(int value, union counter *new_res, char *flag, AddrTable *t);
 int count(union counter *new_res, char *flag, AddrTable *t);
 void buildAddrTable(AddrTable *t, ParseResult *pr);
 int buildAddrBlock(AddrTable *t);
-void parseConfig(const char *path);
+int parseConfig(const char *path);
 int lookupAddrTable(AddrTable *t, unsigned short addr);
 inline void MsecSleep(int msec);
 

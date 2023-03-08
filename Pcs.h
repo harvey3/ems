@@ -14,6 +14,11 @@
 #define RECHARGE_DIFF 30              /* 3% */
 #define DISCHARGE_THRESH 100              /* 10% */
 
+#define PCS_STATE_STOP 0
+#define PCS_STATE_READY 1
+#define PCS_STATE_DISCHARGING 2
+#define PCS_STATE_CHARGING 3
+#define PCS_STATE_ZERO_POWER 4
 
 typedef struct pcs
 {
@@ -67,9 +72,11 @@ typedef struct pcs
     REG_T totalOutApparentPower;
     REG_T maxAllowedApparentPower;
 
+    REG_T runState;
+    
     REG_T ctrlMode;
     REG_T workMode;
-    REG_T runState;
+    REG_T runStateSet;
 
     REG_T startCmd;
     REG_T stopCmd;
@@ -105,6 +112,7 @@ extern int gStopPcsFromIO;
 void* PcsThread(void *param);
 void SetPcsActPower(Pcs *pcs, int16_t power);
 void GetPcsStatus(Pcs *pcs);
+void SetReadyPcs(Pcs *pcs);
 
 
 #endif

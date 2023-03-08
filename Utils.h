@@ -50,7 +50,7 @@ extern int rqueue_write(struct rqueue  *rq, CMDT *cmd);
 extern CMDT *rqueue_read(struct rqueue *rq);
 inline void MsecSleep(int msec);
 
-void parseConfig(const char *path);
+int parseConfig(const char *path);
 
 
 

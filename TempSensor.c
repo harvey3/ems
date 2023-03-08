@@ -1,3 +1,4 @@
+#define _GNU_SOURCE             /* See feature_test_macros(7) */
 #include <stdint.h>
 #include <string.h>
 #include <stdio.h>
@@ -20,6 +21,8 @@
 #include "modbus.h"
 #include "config.h"
 
+extern pthread_t gThermoThread;
+
 TransThermo gTransThermo;
 TempHumiSensor gTempHumiSensor1;
 TempHumiSensor gTempHumiSensor2;
@@ -32,7 +35,9 @@ void* ThermoThread(void *param)
 
     struct timeval tv;
     int err;
-
+    
+    pthread_setname_np(gThermoThread, "Thermo");
+    
     memset(&gTransThermo, 0, sizeof(gTransThermo));
     memset(&gTempHumiSensor1, 0, sizeof(gTempHumiSensor1));
     memset(&gTempHumiSensor2, 0, sizeof(gTempHumiSensor2));
@@ -41,9 +46,16 @@ void* ThermoThread(void *param)
     memset(&gSensorT, 0, sizeof(AddrTable));
     memset(&gThermoT, 0, sizeof(AddrTable));
     
-    parseConfig("config/sensors.conf");
+    err = parseConfig("config/sensors.conf");
+    if (err < 0)
+        pthread_exit(NULL);
+
     buildAddrBlock(&gSensorT);
-    parseConfig("config/thermo.conf");
+    err = parseConfig("config/thermo.conf");
+    if (err < 0)
+        pthread_exit(NULL);
+
+    
     buildAddrBlock(&gThermoT);
     
     gTransThermo.address = TRANSFORMER_THERMO_ADDR;
